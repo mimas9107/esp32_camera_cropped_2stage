@@ -122,7 +122,7 @@ public:
 
   void print_grid(){
     for(int i=0; i<grid.size(); i++){
-      ei_printf()
+      ei_printf();
     }
   }
 
