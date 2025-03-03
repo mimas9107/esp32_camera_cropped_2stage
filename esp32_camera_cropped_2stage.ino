@@ -95,7 +95,7 @@ std::vector<points> ROI={
   {124,178},{249,168},{382,162},{525,160},{663,166},{790,177}
 };
 // 定義預測格子內的藥丸信心閾值:
-#define CLASS_CONFIDENCE 0.50f
+#define CLASS_CONFIDENCE 0.6f
 // 定義偵測容許時間上限: (msec)
 #define DETECT_TIME_THRESHOLD 10000 
 
@@ -105,28 +105,28 @@ int detect_status=0;
 // 定義目前在偵測哪格子:
 int cur_grid=0;
 
-class pillbox_manager{
-private:
-  std::vector<std::vector<ei_impulse_result_bounding_box_t>> grid;
+// class pillbox_manager{
+// private:
+//   std::vector<std::vector<ei_impulse_result_bounding_box_t>> grid;
 
-public:
-  // 紀錄資料
-  void record(std::vector<ei_impulse_result_bounding_box_t> &detected_pills, int grid_id){
-    if(grid_id>=18){
-      ei_printf("[pillbox_manager] Failed to put data in record!\n");
-      break;
-    }
+// public:
+//   // 紀錄資料
+//   void record(std::vector<ei_impulse_result_bounding_box_t> &detected_pills, int grid_id){
+//     if(grid_id>=18){
+//       ei_printf("[pillbox_manager] Failed to put data in record!\n");
+//       return;
+//     }
     
-    grid[grid_id].push_back(detected_pills);
-  }
+//     grid[grid_id].push_back(detected_pills);
+//   }
 
-  void print_grid(){
-    for(int i=0; i<grid.size(); i++){
-      ei_printf();
-    }
-  }
+//   void print_grid(){
+//     for(int i=0; i<grid.size(); i++){
+//       ei_printf("");
+//     }
+//   }
 
-}
+// };
 
 
 void setup()
@@ -146,7 +146,7 @@ void setup()
   pixels.clear();
   Serial.println("bottom+top");
   for(int i=0; i<16; i++){
-    pixels.setPixelColor(i, pixels.Color(76,96,96));
+    pixels.setPixelColor(i, pixels.Color(96,96,96));
     pixels.show();
     delay(DELAYVAL);
   }
@@ -154,8 +154,26 @@ void setup()
   ei_sleep(2000);
 }
 
+String readString;
 void loop()
 {
+  while(Serial.available()){
+    char c = Serial.read();
+    readString +=c;
+    delay(5);
+  }
+  if(readString.length()>0){
+    Serial.println(readString);
+    int n=readString.toInt();
+  
+    if(n>=18){
+      readString="";
+      cur_grid=0;
+    }else{
+      cur_grid=n;
+    }
+    readString="";
+  }
   // 累計偵測到的目標物數量:
   int target_count=0;
 
@@ -184,8 +202,8 @@ void loop()
         return;
     }
     // print the predictions
-    ei_printf("Predictions (DSP: %d ms., Classification: %d ms., Anomaly: %d ms.): \n",
-                result.timing.dsp, result.timing.classification, result.timing.anomaly);
+    ei_printf("Predictions (DSP: %d ms., Classification: %d ms., count %d: \n",
+                result.timing.dsp, result.timing.classification, result.bounding_boxes_count);
 
     ei_printf("Object detection bounding boxes:\r\n");
     for (uint32_t i = 0; i < result.bounding_boxes_count; i++) {
@@ -193,6 +211,7 @@ void loop()
         if (bb.value == 0) {
             continue;
         }
+        if(bb.value >= CLASS_CONFIDENCE){
         ei_printf("  %s (%f) [ x: %u, y: %u, width: %u, height: %u ]\r\n",
                 bb.label,
                 bb.value,
@@ -200,6 +219,7 @@ void loop()
                 bb.y,
                 bb.width,
                 bb.height);
+        }
     }
     free(snapshot_buf);
 }
@@ -281,14 +301,14 @@ bool ei_camera_capture(uint32_t img_width, uint32_t img_height, uint8_t *out_buf
         out_buf, 
         EI_CAMERA_RAW_FRAME_BUFFER_COLS, 
         EI_CAMERA_RAW_FRAME_BUFFER_ROWS, 
-        ROI[2].x, ROI[2].y, 
+        ROI[cur_grid].x, ROI[cur_grid].y, 
         out_buf, 
         EI_CLASSIFIER_INPUT_WIDTH,
         EI_CLASSIFIER_INPUT_HEIGHT);
       Serial.println(res);
         // 1(124,477)  7(120,333) 13(124,178)
         // 2(246,498)  8(248,335) 14(249,168)
-        // 3(386,506)  9(381,336) 15(382,162)
+        // 3(386,506)  9(381,336) 15(382,165)
         // 4(525,507) 10(526,338) 16(525,160)
         // 5(661,501) 11(662,336) 17(663,166)
         // 6(781,489) 12(790,337) 18(790,177)
